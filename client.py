@@ -15,7 +15,7 @@ class VPNClientProtocol(LineReceiver):
         print "Server said:", line
         self.transport.write(line)
         #self.transport.loseConnection()
-
+        #testcommitacomment
 
 class VPNClientFactory(protocol.ClientFactory):
 
