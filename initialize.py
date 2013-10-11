@@ -1,9 +1,13 @@
 import gtk
 
-class EntryExample:
+class ApplicationGUI:
     def enter_callback(self, widget, entry):
         entry_text = entry.get_text()
         print "Entry contents: %s\n" % entry_text
+
+    def enter_send_callback(self, widget, entry):
+        entry_text = entry.get_text()
+        print "Send this text: %s\n" % entry_text    
 
     def entry_toggle_editable(self, checkbutton, entry):
         entry.set_editable(checkbutton.active)
@@ -14,7 +18,7 @@ class EntryExample:
     def __init__(self):
         # create a new window
         window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-        window.set_usize(300, 100)
+        window.set_usize(600, 500)
         window.set_title("GTK Entry")
         window.connect("delete_event", gtk.mainquit)
 
@@ -22,36 +26,103 @@ class EntryExample:
         window.add(vbox)
         vbox.show()
 
-        entry = gtk.Entry(50)
-        entry.connect("activate", self.enter_callback, entry)
-        entry.set_text("hello")
-        entry.append_text(" world")
-        entry.select_region(0, len(entry.get_text()))
-        vbox.pack_start(entry, gtk.TRUE, gtk.TRUE, 0)
-        entry.show()
+        mode_hbox = gtk.HBox(gtk.FALSE, 0)
+        vbox.add(mode_hbox)
+        mode_hbox.show()
 
-        hbox = gtk.HBox(gtk.FALSE, 0)
-        vbox.add(hbox)
-        hbox.show()
-                                  
-        check = gtk.CheckButton("Editable")
-        hbox.pack_start(check, gtk.TRUE, gtk.TRUE, 0)
-        check.connect("toggled", self.entry_toggle_editable, entry)
-        check.set_active(gtk.TRUE)
-        check.show()
-    
-        check = gtk.CheckButton("Visible")
-        hbox.pack_start(check, gtk.TRUE, gtk.TRUE, 0)
-        check.connect("toggled", self.entry_toggle_visibility, entry)
-        check.set_active(gtk.TRUE)
-        check.show()
-                                   
-        button = gtk.Button("Close")
-        button.connect_object("clicked", gtk.mainquit, window)
-        vbox.pack_start(button, gtk.TRUE, gtk.TRUE, 0)
-        button.set_flags(gtk.CAN_DEFAULT)
-        button.grab_default()
-        button.show()
+        host_port_hbox = gtk.HBox(gtk.FALSE, 0)
+        vbox.add(host_port_hbox)
+        host_port_hbox.show()
+
+        label = gtk.Label("Shared Secret")
+        vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
+        label.show()
+
+        shared_secret_entry = gtk.Entry(50)
+        shared_secret_entry.connect("activate", self.enter_callback, shared_secret_entry)
+        shared_secret_entry.set_text("Shared secret")
+        shared_secret_entry.select_region(0, len(shared_secret_entry.get_text()))
+        vbox.pack_start(shared_secret_entry, gtk.TRUE, gtk.TRUE, 0)
+        shared_secret_entry.show()
+
+        label = gtk.Label("Plain text")
+        vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
+        label.show()
+
+        plain_text_entry = gtk.Entry(50)
+        plain_text_entry.connect("activate", self.enter_callback, plain_text_entry)
+        plain_text_entry.set_text("plain text")
+        plain_text_entry.select_region(0, len(plain_text_entry.get_text()))
+        vbox.pack_start(plain_text_entry, gtk.TRUE, gtk.TRUE, 0)
+        plain_text_entry.show()
+
+        label = gtk.Label("Cipher text")
+        vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
+        label.show()
+
+        cipher_text_entry = gtk.Entry(50)
+        cipher_text_entry.connect("activate", self.enter_callback, cipher_text_entry)
+        cipher_text_entry.set_text("cipher")
+        cipher_text_entry.append_text(" text")
+        cipher_text_entry.select_region(0, len(cipher_text_entry.get_text()))
+        vbox.pack_start(cipher_text_entry, gtk.TRUE, gtk.TRUE, 0)
+        cipher_text_entry.show()        
+
+        label = gtk.Label("Mode")
+        mode_hbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
+        label.show()
+
+        server_button = gtk.RadioButton(None, "Server")
+        mode_hbox.pack_start(server_button, gtk.TRUE, gtk.TRUE, 0)
+        server_button.connect("toggled", self.entry_toggle_editable, plain_text_entry)
+        server_button.set_active(gtk.TRUE)
+        server_button.show()
+
+        client_button = gtk.RadioButton(server_button, "Client")
+        mode_hbox.pack_start(client_button, gtk.TRUE, gtk.TRUE, 0)
+        client_button.connect("toggled", self.entry_toggle_editable, plain_text_entry)
+        client_button.show()
+
+        label = gtk.Label("Server Host")
+        host_port_hbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
+        label.show()
+
+        host_entry = gtk.Entry(10)
+        host_entry.set_text("host")
+        host_entry.select_region(0, len(host_entry.get_text()))
+        host_port_hbox.pack_start(host_entry, gtk.TRUE, gtk.TRUE, 0)
+        host_entry.show()                   
+
+        label = gtk.Label("Port")
+        host_port_hbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
+        label.show()
+
+        port_entry = gtk.Entry(10)
+        port_entry.set_text("port")
+        port_entry.select_region(0, len(port_entry.get_text()))
+        host_port_hbox.pack_start(port_entry, gtk.TRUE, gtk.TRUE, 0)
+        port_entry.show()     
+
+        send_button = gtk.Button("Send")
+        vbox.pack_start(send_button, gtk.TRUE, gtk.TRUE, 0)
+        send_button.connect("clicked", self.enter_send_callback, plain_text_entry)
+        send_button.show()
+
+        close_button = gtk.Button("Close")
+        close_button.connect_object("clicked", gtk.mainquit, window)
+        vbox.pack_start(close_button, gtk.TRUE, gtk.TRUE, 0)
+        close_button.set_flags(gtk.CAN_DEFAULT)
+        close_button.grab_default()
+        close_button.show()
+ 
+        label = gtk.Label("Received Text")
+        vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
+        label.show()
+
+        textview = gtk.TextView()
+        vbox.pack_start(textview, gtk.TRUE, gtk.TRUE, 0)
+        textview.show()
+
         window.show()
 
 def main():
@@ -59,5 +130,5 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    EntryExample()
+    ApplicationGUI()
     main()
