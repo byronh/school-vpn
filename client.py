@@ -1,53 +1,29 @@
-from twisted.internet import reactor
-from twisted.internet import main, protocol, task
-from twisted.protocols.basic import LineReceiver
+import socket
 
 
-class VPNClientProtocol(LineReceiver):
+class Client(object):
 
-    def connectionMade(self):
-        self.factory.connection_established(self)
-    
-    def connectionLost(self, reason):
-        pass
+    def connect(self, host, port):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((host, port))
 
-    def lineReceived(self, line):
-        print "Server said:", line
-        self.transport.write(line)
-        #self.transport.loseConnection()
-        #testcommitacomment
+    def disconnect(self):
+        self.sock.close()
 
-class VPNClientFactory(protocol.ClientFactory):
+    def send(self, message):
+        self.sock.sendall(message)
+        result = self.sock.recv(1024)
+        print "Received response '%s' from server" % result
+        return result
 
-    protocol = VPNClientProtocol
-
-    def startedConnecting(self, connector):
-        print "Connecting to server..."
-
-    def clientConnectionFailed(self, connector, reason):
-        print "Failed to connect to server."
-        # It may be useful to call connector.connect() - this will reconnect (?).
-        reactor.stop()
-    
-    def clientConnectionLost(self, connector, reason):
-        print "Disconnected from server."
-        # It may be useful to call connector.connect() - this will reconnect (?).
-        reactor.stop()
-
-    def connection_established(self, client):
-        self.client = client
-        print "Connected to server."
-
-    def send_message(self, message):
-        print "Sending message to server."
-        self.client.transport.write(message + "\r\n")
-
-def main():
-    # Connect to server
-    server = VPNClientFactory()
-    reactor.connectTCP("192.110.160.199", 6318, server)
-    reactor.run()
-    #.send_message("Hello!")
 
 if __name__ == "__main__":
-    main()
+
+    client = Client()
+    client.connect("localhost", 6321)
+
+    while True:
+        data = raw_input("Enter message: ")
+        client.send(data)
+
+    client.disconnect()    

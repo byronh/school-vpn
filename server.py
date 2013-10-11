@@ -1,42 +1,39 @@
-from twisted.internet import reactor, protocol
-from twisted.protocols.basic import LineReceiver
+import socket
 
 
-class VPNServerProtocol(LineReceiver):
+class Server(object):
 
-    def connectionMade(self):
-        self.peer = self.transport.getPeer()
-        print "A client has connected to the server.", self.peer
-        self.factory.connections.append(self)
+    def start(self, port):
 
-    def connectionLost(self, reason):
-        print "A client has disconnected from the server.", self.peer
-        self.peer = None
-        self.factory.connections.remove(self)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.bind(("", port))
 
-    def lineReceived(self, line):
-        print "Client said:", line
-        self.transport.write(line)
+        print "TCP server listening on port", port
+    
+    def listen(self):
+        self.sock.listen(1)
 
+        conn, addr = self.sock.accept()
+        print "Client connection received from", addr
 
-class VPNServerFactory(protocol.ServerFactory):
+        while True:
+            data = conn.recv(1024)
 
-    protocol = VPNServerProtocol
+            if not data:
+                continue
 
-    def __init__(self):
-        self.connections = []
+            result = self.process(data)
+            print "Received %s, sending %s" % (data, result)
+            conn.sendall(result)
 
-    def startFactory(self):
-        print("Server initialized.")
+        conn.close()
 
-    def stopFactory(self):
-        print("Server terminated.")
+    def process(self, message):
+        return message.upper() #placeholder, do something with the message
 
-
-def main():
-    factory = VPNServerFactory()
-    reactor.listenTCP(6318, factory)
-    reactor.run()
 
 if __name__ == "__main__":
-    main()
+    
+    server = Server()
+    server.start(6321)
+    server.listen()
