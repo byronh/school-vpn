@@ -1,6 +1,14 @@
+#!/usr/bin/env python
 import gtk
 
+from vpnserver import VPNServer
+from vpnclient import VPNClient
+
 class ApplicationGUI:
+    def __init__(self):
+        self.server = None
+        self.client = None
+
     def enter_callback(self, widget, entry):
         entry_text = entry.get_text()
         print "Entry contents: %s\n" % entry_text
@@ -9,11 +17,28 @@ class ApplicationGUI:
         entry_text = entry.get_text()
         print "Send this text: %s\n" % entry_text    
 
+    def start_server_callback(self, widget, port_entry, shared_secret_entry):
+        # TODO: catch exceptions such as not being able to bind on port
+        self.server = VPNServer(int(port_entry.get_text()), shared_secret_entry.get_text())
+        self.server.add_message_received_callback(self.message_received_callback)
+        self.server.start()
+
+    def connect_callback(self, widget, host_entry, port_entry, shared_secret_entry):
+        # TODO: handle authentication errors and connection errors
+        self.client = VPNClient(
+                host_entry.get_text(), int(port_entry.get_text()), shared_secret_entry.get_text())
+        self.client.add_message_received_callback(self.message_received_callback)
+        self.client.start()
+
     def entry_toggle_editable(self, checkbutton, entry):
-        entry.set_editable(checkbutton.active)
+        entry.set_editable(checkbutton.get_active())
 
     def entry_toggle_visibility(self, checkbutton, entry):
-        entry.set_visibility(checkbutton.active)
+        entry.set_visibility(checkbutton.get_active())
+
+    def message_received_callback(self, encrypted_message, plaintext_message):
+        # TODO: display the message
+        pass
 
     def __init__(self):
         # create a new window
@@ -107,6 +132,11 @@ class ApplicationGUI:
         vbox.pack_start(send_button, gtk.TRUE, gtk.TRUE, 0)
         send_button.connect("clicked", self.enter_send_callback, plain_text_entry)
         send_button.show()
+
+        start_server_button = gtk.Button("Start Server")
+        vbox.pack_start(start_server_button, gtk.TRUE, gtk.TRUE, 0)
+        start_server_button.connect("clicked", self.start_server_callback, port_entry, shared_secret_entry)
+        start_server_button.show()
 
         close_button = gtk.Button("Close")
         close_button.connect_object("clicked", gtk.mainquit, window)
