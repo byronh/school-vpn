@@ -12,6 +12,8 @@ class VPNServer(threading.Thread):
 
         self.running = True
         self.message_received_callbacks = []
+        self.client_connected_callbacks = []
+        self.client_disconnected_callbacks = []
 
         self.client_connection = None
         self.session_key = None
@@ -26,6 +28,8 @@ class VPNServer(threading.Thread):
             self.client_connection, addr = self.socket.accept()
 
             if self.authenticate_client():
+                for callback in self.client_connected_callbacks:
+                    callback(self.client_connection)
                 print "Authenticated sucessfully"
                 self.handle_client()
             else:
@@ -33,6 +37,9 @@ class VPNServer(threading.Thread):
                     conn.close()
                 except:
                     pass
+            for callback in self.client_disconnected_callbacks:
+                # maybe this doesn't need a parameter instead?
+                callback(self.client_connection)
 
     def authenticate_client(self):
         client_nonce = self.client_connection.recv(1024)
@@ -97,6 +104,12 @@ class VPNServer(threading.Thread):
 
     def add_message_received_callback(self, function):
         self.message_received_callbacks.append(function)
+
+    def add_client_connected_callback(self, function):
+        self.client_connected_callbacks.append(function)
+
+    def add_client_disconnected_callback(self, function):
+        self.client_disconnected_callbacks.append(function)
 
 if __name__ == "__main__":
     def received_callback(encrypted_message, plaintext_message):

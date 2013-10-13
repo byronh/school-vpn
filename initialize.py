@@ -4,7 +4,7 @@ import gtk
 from vpnserver import VPNServer
 from vpnclient import VPNClient
 
-class ApplicationGUI:
+class ApplicationGUI(object):
     def __init__(self):
         self.server = None
         self.client = None
@@ -19,22 +19,42 @@ class ApplicationGUI:
 
     def start_server_callback(self, widget, port_entry, shared_secret_entry):
         # TODO: catch exceptions such as not being able to bind on port
+        shared_secret_entry.set_editable(False)
         self.server = VPNServer(int(port_entry.get_text()), shared_secret_entry.get_text())
         self.server.add_message_received_callback(self.message_received_callback)
         self.server.start()
 
     def connect_callback(self, widget, host_entry, port_entry, shared_secret_entry):
         # TODO: handle authentication errors and connection errors
+        shared_secret_entry.set_editable(False)
         self.client = VPNClient(
                 host_entry.get_text(), int(port_entry.get_text()), shared_secret_entry.get_text())
         self.client.add_message_received_callback(self.message_received_callback)
         self.client.start()
 
-    def entry_toggle_editable(self, checkbutton, entry):
+    def client_connected_callback(self, socket):
+        pass
+
+    def client_disconnected_callback(self, socket):
+        pass
+
+    def connected_to_server_callback(self, socket):
+        pass
+
+    def disconnected_from_server_callback(self, socket):
+        pass
+
+    def mode_changed_callback(self, checkbutton, entry):
         entry.set_editable(checkbutton.get_active())
 
-    def entry_toggle_visibility(self, checkbutton, entry):
-        entry.set_visibility(checkbutton.get_active())
+    def mode_toggled_callback(self, widget, host_label, host_entry, is_client_mode=True):
+        if self.server:
+            pass
+        if self.client:
+            pass
+
+        host_label.set_visibility(is_client_mode)
+        host_entry.set_visibility(is_client_mode)
 
     def message_received_callback(self, encrypted_message, plaintext_message):
         # TODO: display the message
@@ -97,33 +117,33 @@ class ApplicationGUI:
         mode_hbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
         label.show()
 
-        server_button = gtk.RadioButton(None, "Server")
-        mode_hbox.pack_start(server_button, gtk.TRUE, gtk.TRUE, 0)
-        server_button.connect("toggled", self.entry_toggle_editable, plain_text_entry)
-        server_button.set_active(gtk.TRUE)
-        server_button.show()
-
-        client_button = gtk.RadioButton(server_button, "Client")
-        mode_hbox.pack_start(client_button, gtk.TRUE, gtk.TRUE, 0)
-        client_button.connect("toggled", self.entry_toggle_editable, plain_text_entry)
-        client_button.show()
-
-        label = gtk.Label("Server Host")
-        host_port_hbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
-        label.show()
+        host_label = gtk.Label("Server Host")
+        host_port_hbox.pack_start(host_label, gtk.TRUE, gtk.TRUE, 0)
+        #host_label.show()
 
         host_entry = gtk.Entry(10)
         host_entry.set_text("host")
         host_entry.select_region(0, len(host_entry.get_text()))
         host_port_hbox.pack_start(host_entry, gtk.TRUE, gtk.TRUE, 0)
-        host_entry.show()                   
+        #host_entry.show()                   
+
+        server_button = gtk.RadioButton(None, "Server")
+        mode_hbox.pack_start(server_button, gtk.TRUE, gtk.TRUE, 0)
+        server_button.connect("toggled", self.mode_toggled_callback, host_label, host_entry, False)
+        server_button.set_active(gtk.TRUE)
+        server_button.show()
+
+        client_button = gtk.RadioButton(server_button, "Client")
+        mode_hbox.pack_start(client_button, gtk.TRUE, gtk.TRUE, 0)
+        client_button.connect("toggled", self.mode_toggled_callback, host_label, host_entry, True)
+        client_button.show()
 
         label = gtk.Label("Port")
         host_port_hbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
         label.show()
 
         port_entry = gtk.Entry(10)
-        port_entry.set_text("port")
+        port_entry.set_text("6321")
         port_entry.select_region(0, len(port_entry.get_text()))
         host_port_hbox.pack_start(port_entry, gtk.TRUE, gtk.TRUE, 0)
         port_entry.show()     

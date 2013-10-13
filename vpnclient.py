@@ -13,6 +13,8 @@ class VPNClient(threading.Thread):
 
         self.running = True
         self.message_received_callbacks = []
+        self.connected_to_server_callbacks = []
+        self.disconnected_from_server_callbacks = []
 
         self.socket = None
         self.session_key = None
@@ -42,17 +44,23 @@ class VPNClient(threading.Thread):
 
         print "Authenticated successfully"
 
+        for callback in self.connected_to_server_callbacks:
+            callback(self.socket)
+
         while self.running:
             encrypted_message = self.socket.recv(1024)
 
             if not encrypted_message:
-                continue
+                break
 
             # TODO: decrypt the message
             plaintext_message = encrypted_message
 
             for callback in self.message_received_callbacks:
                 callback(encrypted_message, plaintext_message)
+
+        for callback in self.disconnected_from_server_callbacks:
+            callback(self.socket)
 
     def generate_nonce(self):
         return 0
@@ -87,6 +95,12 @@ class VPNClient(threading.Thread):
 
     def add_message_received_callback(self, function):
         self.message_received_callbacks.append(function)
+
+    def add_connected_to_server_callback(self, function):
+        self.connected_to_server_callbacks.append(function)
+
+    def add_disconnected_from_server_callback(self, function):
+        self.disconnected_from_server_callbacks.append(function)
 
 if __name__ == "__main__":
     def received_callback(encrypted_message, plaintext_message):
