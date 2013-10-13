@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import select
 import socket
 import threading
 
@@ -25,37 +26,55 @@ class VPNServer(threading.Thread):
         self.socket.listen(1)
 
         while self.running:
-            self.client_connection, addr = self.socket.accept()
+            readable, writable, errored = select.select([self.socket], [], [])
 
-            if self.authenticate_client():
-                for callback in self.client_connected_callbacks:
+            if readable:
+                self.client_connection, addr = self.socket.accept()
+
+                if self.authenticate_client():
+                    for callback in self.client_connected_callbacks:
+                        callback(self.client_connection)
+                    print "Authenticated sucessfully"
+                    self.handle_client()
+                else:
+                    try:
+                        self.client_connection.close()
+                    except:
+                        pass
+                for callback in self.client_disconnected_callbacks:
+                    # maybe this doesn't need a parameter instead?
                     callback(self.client_connection)
-                print "Authenticated sucessfully"
-                self.handle_client()
-            else:
-                try:
-                    conn.close()
-                except:
-                    pass
-            for callback in self.client_disconnected_callbacks:
-                # maybe this doesn't need a parameter instead?
-                callback(self.client_connection)
 
     def authenticate_client(self):
-        client_nonce = self.client_connection.recv(1024)
-        challenge = self.generate_challenge(client_nonce)
-        nonce = self.generate_nonce()
+        while self.running:
+            readable, writable, errored = select.select([self.client_connection], [], [])
 
-        self.client_connection.sendall("{}\n{}".format(nonce, challenge))
+            if readable:
+                client_nonce = self.client_connection.recv(1024)
+                challenge = self.generate_challenge(client_nonce)
+                nonce = self.generate_nonce()
+                break
 
-        challenge_response = self.client_connection.recv(1024)
+        while self.running:
+            readable, writable, errored = select.select([], [self.client_connection], [])
 
-        print "Received challenge response:\n{}".format(challenge_response)
+            if writable:
+                self.client_connection.sendall("{}\n{}".format(nonce, challenge))
+                break
 
-        if not challenge_response:
-            return False
+        while self.running:
+            readable, writable, errored = select.select([self.client_connection], [], [])
 
-        return self.validate_challenge_response(challenge_response, nonce)
+            if readable:
+                challenge_response = self.client_connection.recv(1024)
+
+                print "Received challenge response:\n{}".format(challenge_response)
+
+                if not challenge_response:
+                    return False
+
+                return self.validate_challenge_response(challenge_response, nonce)
+        return False
 
     def generate_nonce(self):
         return 1
@@ -85,22 +104,29 @@ class VPNServer(threading.Thread):
 
     def handle_client(self):
         while self.running:
-            encrypted_message = self.client_connection.recv(1024)
+            readable, writable, errored = select.select([self.client_connection], [], [])
+            if readable:
+                encrypted_message = self.client_connection.recv(1024)
 
-            if not encrypted_message:
-                return
+                if not encrypted_message:
+                    # the client disconnected
+                    return
 
-            # TODO: decrypt message
-            plaintext_message = encrypted_message
+                # TODO: decrypt message
+                plaintext_message = encrypted_message
 
-            for callback in self.message_received_callbacks:
-                callback(encrypted_message, plaintext_message)
+                for callback in self.message_received_callbacks:
+                    callback(encrypted_message, plaintext_message)
 
     def send(self, message):
-        if self.client_connection and self.session_key:
-            # TODO: encrypt message
+        while self.running:
+            readable, writable, errored = select.select([], [self.client_connection], [])
 
-            self.client_connection.sendall(message)
+            if writable and self.session_key:
+                # TODO: encrypt message
+
+                self.client_connection.sendall(message)
+                break
 
     def add_message_received_callback(self, function):
         self.message_received_callbacks.append(function)
@@ -110,6 +136,12 @@ class VPNServer(threading.Thread):
 
     def add_client_disconnected_callback(self, function):
         self.client_disconnected_callbacks.append(function)
+
+    def kill(self, wait=False):
+        self.running = False
+
+        if wait:
+            self.join()
 
 if __name__ == "__main__":
     def received_callback(encrypted_message, plaintext_message):
