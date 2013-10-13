@@ -20,12 +20,14 @@ class VPNServer(threading.Thread):
         self.session_key = None
 
     def run(self):
+        print "Starting server"
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind(("", self.port))
 
         self.socket.listen(1)
 
         while self.running:
+            print "Listening for client"
             readable, writable, errored = select.select([self.socket], [], [])
 
             if readable:
@@ -46,6 +48,7 @@ class VPNServer(threading.Thread):
                     callback(self.client_connection)
 
     def authenticate_client(self):
+        print "Authenticating client"
         while self.running:
             readable, writable, errored = select.select([self.client_connection], [], [])
 
@@ -142,6 +145,7 @@ class VPNServer(threading.Thread):
 
         if wait:
             self.join()
+
 
 if __name__ == "__main__":
     def received_callback(encrypted_message, plaintext_message):

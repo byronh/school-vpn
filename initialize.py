@@ -5,10 +5,6 @@ from vpnserver import VPNServer
 from vpnclient import VPNClient
 
 class ApplicationGUI(object):
-    def __init__(self):
-        self.server = None
-        self.client = None
-
     def enter_callback(self, widget, entry):
         entry_text = entry.get_text()
         print "Entry contents: %s\n" % entry_text
@@ -17,20 +13,20 @@ class ApplicationGUI(object):
         entry_text = entry.get_text()
         print "Send this text: %s\n" % entry_text    
 
-    def start_server_callback(self, widget, port_entry, shared_secret_entry):
-        # TODO: catch exceptions such as not being able to bind on port
-        shared_secret_entry.set_editable(False)
-        self.server = VPNServer(int(port_entry.get_text()), shared_secret_entry.get_text())
-        self.server.add_message_received_callback(self.message_received_callback)
-        self.server.start()
-
-    def connect_callback(self, widget, host_entry, port_entry, shared_secret_entry):
-        # TODO: handle authentication errors and connection errors
-        shared_secret_entry.set_editable(False)
-        self.client = VPNClient(
-                host_entry.get_text(), int(port_entry.get_text()), shared_secret_entry.get_text())
-        self.client.add_message_received_callback(self.message_received_callback)
-        self.client.start()
+    def start_callback(self, widget, host_entry, port_entry, shared_secret_entry):
+        if widget.get_label() == "Start Server":
+            # TODO: catch exceptions such as not being able to bind on port
+            shared_secret_entry.set_editable(False)
+            self.server = VPNServer(int(port_entry.get_text()), shared_secret_entry.get_text())
+            self.server.add_message_received_callback(self.message_received_callback)
+            self.server.start()
+        else:
+            # TODO: handle authentication errors and connection errors
+            shared_secret_entry.set_editable(False)
+            self.client = VPNClient(
+                    host_entry.get_text(), int(port_entry.get_text()), shared_secret_entry.get_text())
+            self.client.add_message_received_callback(self.message_received_callback)
+            self.client.start()
 
     def client_connected_callback(self, socket):
         pass
@@ -44,23 +40,24 @@ class ApplicationGUI(object):
     def disconnected_from_server_callback(self, socket):
         pass
 
-    def mode_changed_callback(self, checkbutton, entry):
-        entry.set_editable(checkbutton.get_active())
+    def mode_toggled_callback(self, widget, host_label, host_entry, start_button, is_client_mode=True):
+        host_label.set_visible(is_client_mode)
+        host_entry.set_visible(is_client_mode)
 
-    def mode_toggled_callback(self, widget, host_label, host_entry, is_client_mode=True):
-        if self.server:
-            pass
-        if self.client:
-            pass
-
-        host_label.set_visibility(is_client_mode)
-        host_entry.set_visibility(is_client_mode)
+        if is_client_mode:
+            start_button.set_label("Connect to Server")
+        else:
+            start_button.set_label("Start Server")
 
     def message_received_callback(self, encrypted_message, plaintext_message):
         # TODO: display the message
-        pass
+        print "ENCRYPTED: {}".format(encrypted_message)
+        print "DECRYPTED: {}".format(plaintext_message)
 
     def __init__(self):
+        self.server = None
+        self.client = None
+
         # create a new window
         window = gtk.Window(gtk.WINDOW_TOPLEVEL)
         window.set_usize(600, 500)
@@ -122,21 +119,10 @@ class ApplicationGUI(object):
         #host_label.show()
 
         host_entry = gtk.Entry(10)
-        host_entry.set_text("host")
+        host_entry.set_text("localhost")
         host_entry.select_region(0, len(host_entry.get_text()))
         host_port_hbox.pack_start(host_entry, gtk.TRUE, gtk.TRUE, 0)
         #host_entry.show()                   
-
-        server_button = gtk.RadioButton(None, "Server")
-        mode_hbox.pack_start(server_button, gtk.TRUE, gtk.TRUE, 0)
-        server_button.connect("toggled", self.mode_toggled_callback, host_label, host_entry, False)
-        server_button.set_active(gtk.TRUE)
-        server_button.show()
-
-        client_button = gtk.RadioButton(server_button, "Client")
-        mode_hbox.pack_start(client_button, gtk.TRUE, gtk.TRUE, 0)
-        client_button.connect("toggled", self.mode_toggled_callback, host_label, host_entry, True)
-        client_button.show()
 
         label = gtk.Label("Port")
         host_port_hbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
@@ -153,10 +139,21 @@ class ApplicationGUI(object):
         send_button.connect("clicked", self.enter_send_callback, plain_text_entry)
         send_button.show()
 
-        start_server_button = gtk.Button("Start Server")
-        vbox.pack_start(start_server_button, gtk.TRUE, gtk.TRUE, 0)
-        start_server_button.connect("clicked", self.start_server_callback, port_entry, shared_secret_entry)
-        start_server_button.show()
+        start_button = gtk.Button("Start Server")
+        vbox.pack_start(start_button, gtk.TRUE, gtk.TRUE, 0)
+        start_button.connect("clicked", self.start_callback, host_entry, port_entry, shared_secret_entry)
+        start_button.show()
+
+        server_button = gtk.RadioButton(None, "Server")
+        mode_hbox.pack_start(server_button, gtk.TRUE, gtk.TRUE, 0)
+        server_button.connect("toggled", self.mode_toggled_callback, host_label, host_entry, start_button, False)
+        server_button.set_active(gtk.TRUE)
+        server_button.show()
+
+        client_button = gtk.RadioButton(server_button, "Client")
+        mode_hbox.pack_start(client_button, gtk.TRUE, gtk.TRUE, 0)
+        client_button.connect("toggled", self.mode_toggled_callback, host_label, host_entry, start_button, True)
+        client_button.show()
 
         close_button = gtk.Button("Close")
         close_button.connect_object("clicked", gtk.mainquit, window)
