@@ -11,22 +11,21 @@ class ApplicationGUI(object):
 
     def enter_send_callback(self, widget, entry):
         entry_text = entry.get_text()
-        print "Send this text: %s\n" % entry_text    
+        self.vpn.send(entry_text)
 
-    def start_callback(self, widget, host_entry, port_entry, shared_secret_entry):
+    def start_callback(self, widget, host_entry, port_entry, shared_secret_entry, cipher_text_entry):
+        shared_secret_entry.set_editable(False)
         if widget.get_label() == "Start Server":
             # TODO: catch exceptions such as not being able to bind on port
-            shared_secret_entry.set_editable(False)
-            self.server = VPNServer(int(port_entry.get_text()), shared_secret_entry.get_text())
-            self.server.add_message_received_callback(self.message_received_callback)
-            self.server.start()
+            self.vpn = VPNServer(int(port_entry.get_text()), shared_secret_entry.get_text())
         else:
             # TODO: handle authentication errors and connection errors
-            shared_secret_entry.set_editable(False)
-            self.client = VPNClient(
+            self.vpn = VPNClient(
                     host_entry.get_text(), int(port_entry.get_text()), shared_secret_entry.get_text())
-            self.client.add_message_received_callback(self.message_received_callback)
-            self.client.start()
+
+        self.vpn.add_message_received_callback(self.message_received_callback)
+        self.vpn.add_message_sent_callback(self.message_sent_callback, cipher_text_entry)
+        self.vpn.start()
 
     def client_connected_callback(self, socket):
         pass
@@ -50,13 +49,20 @@ class ApplicationGUI(object):
             start_button.set_label("Start Server")
 
     def message_received_callback(self, encrypted_message, plaintext_message):
-        # TODO: display the message
-        print "ENCRYPTED: {}".format(encrypted_message)
-        print "DECRYPTED: {}".format(plaintext_message)
+        self.received_cipher_textview.get_buffer().set_text(encrypted_message)
+        self.received_plain_textview.get_buffer().set_text(plaintext_message)
+
+    def message_sent_callback(self, plaintext_message, encrypted_message, cipher_text_entry):
+        cipher_text_entry.get_buffer().set_text(encrypted_message)
+
+    def close(self, widget):
+        if self.vpn:
+            self.vpn.kill()
+
+        gtk.mainquit()
 
     def __init__(self):
-        self.server = None
-        self.client = None
+        self.vpn = None
 
         # create a new window
         window = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -141,7 +147,7 @@ class ApplicationGUI(object):
 
         start_button = gtk.Button("Start Server")
         vbox.pack_start(start_button, gtk.TRUE, gtk.TRUE, 0)
-        start_button.connect("clicked", self.start_callback, host_entry, port_entry, shared_secret_entry)
+        start_button.connect("clicked", self.start_callback, host_entry, port_entry, shared_secret_entry, cipher_text_entry)
         start_button.show()
 
         server_button = gtk.RadioButton(None, "Server")
@@ -156,19 +162,27 @@ class ApplicationGUI(object):
         client_button.show()
 
         close_button = gtk.Button("Close")
-        close_button.connect_object("clicked", gtk.mainquit, window)
+        close_button.connect_object("clicked", self.close, window)
         vbox.pack_start(close_button, gtk.TRUE, gtk.TRUE, 0)
         close_button.set_flags(gtk.CAN_DEFAULT)
         close_button.grab_default()
         close_button.show()
  
-        label = gtk.Label("Received Text")
+        label = gtk.Label("Received Cipher Text")
         vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
         label.show()
 
-        textview = gtk.TextView()
-        vbox.pack_start(textview, gtk.TRUE, gtk.TRUE, 0)
-        textview.show()
+        self.received_cipher_textview = gtk.TextView()
+        vbox.pack_start(self.received_cipher_textview, gtk.TRUE, gtk.TRUE, 0)
+        self.received_cipher_textview.show()
+
+        label = gtk.Label("Received Plain Text")
+        vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
+        label.show()
+
+        self.received_plain_textview = gtk.TextView()
+        vbox.pack_start(self.received_plain_textview, gtk.TRUE, gtk.TRUE, 0)
+        self.received_plain_textview.show()
 
         window.show()
 
