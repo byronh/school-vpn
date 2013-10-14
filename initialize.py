@@ -82,7 +82,7 @@ class ApplicationGUI(object):
 
         shared_secret_entry = gtk.Entry(50)
         shared_secret_entry.connect("activate", self.enter_callback, shared_secret_entry)
-        shared_secret_entry.set_text("Shared secret")
+        shared_secret_entry.set_text("shared_secret")
         shared_secret_entry.select_region(0, len(shared_secret_entry.get_text()))
         vbox.pack_start(shared_secret_entry, gtk.TRUE, gtk.TRUE, 0)
         shared_secret_entry.show()
@@ -173,6 +173,7 @@ class ApplicationGUI(object):
         window.show()
 
 def main():
+    gtk.gdk.threads_init()
     gtk.mainloop()
     return 0
 
