@@ -1,28 +1,17 @@
 #!/usr/bin/env python
 import select
 import socket
-import threading
 
-class VPNClient(threading.Thread):
-    def __init__(self, server_host, server_port, shared_secret):
-        super(VPNClient, self).__init__()
-        self.daemon = True
+from vpn import VPN
 
-        self.server_host = server_host
-        self.server_port = server_port
-        self.shared_secret = shared_secret
-
-        self.running = True
-        self.message_received_callbacks = []
-        self.connected_to_server_callbacks = []
-        self.disconnected_from_server_callbacks = []
-
-        self.socket = None
-        self.session_key = None
+class VPNClient(VPN):
+    def __init__(self, host, port, shared_secret):
+        super(VPNClient, self).__init__(port, shared_secret)
+        self.host = host
 
     def run(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.server_host, self.server_port))
+        self.socket.connect((self.host, self.port))
 
         challenge_response = None
         nonce = self.generate_nonce()
@@ -62,30 +51,11 @@ class VPNClient(threading.Thread):
 
         print "Authenticated successfully"
 
-        for callback in self.connected_to_server_callbacks:
-            callback(self.socket)
+        self.handle_callbacks(self.connected_callbacks, self.socket)
 
-        while self.running:
-            readable, writable, errored = select.select([self.socket], [], [])
+        self.receive_messages()
 
-            if readable:
-                encrypted_message = self.socket.recv(1024)
-
-                if not encrypted_message:
-                    # the client disconnected?
-                    break
-
-                # TODO: decrypt the message
-                plaintext_message = encrypted_message
-
-                for callback in self.message_received_callbacks:
-                    callback(encrypted_message, plaintext_message)
-
-        for callback in self.disconnected_from_server_callbacks:
-            callback(self.socket)
-
-    def generate_nonce(self):
-        return 0
+        self.handle_callbacks(self.disconnected_callbacks, self.socket)
 
     def generate_challenge_response(self, challenge, original_nonce, server_nonce):
         # TODO: decrypt challenge
@@ -108,31 +78,6 @@ class VPNClient(threading.Thread):
 
     def generate_session_key(self):
         return "session key"
-
-    def send(self, message):
-        while self.running:
-            readable, writable, errored = select.select([], [self.socket], [])
-
-            if writable and self.session_key:
-                # TODO: encrypt message
-
-                self.socket.sendall(message)
-                break
-
-    def add_message_received_callback(self, function):
-        self.message_received_callbacks.append(function)
-
-    def add_connected_to_server_callback(self, function):
-        self.connected_to_server_callbacks.append(function)
-
-    def add_disconnected_from_server_callback(self, function):
-        self.disconnected_from_server_callbacks.append(function)
-
-    def kill(self, wait=False):
-        self.running = False
-
-        if wait:
-            self.join()
 
 if __name__ == "__main__":
     def received_callback(encrypted_message, plaintext_message):

@@ -1,75 +1,65 @@
 #!/usr/bin/env python
 import select
 import socket
-import threading
 
-class VPNServer(threading.Thread):
+from vpn import VPN
+
+class VPNServer(VPN):
     def __init__(self, port, shared_secret):
-        super(VPNServer, self).__init__()
-        self.daemon = True
-
-        self.port = port
-        self.shared_secret = shared_secret
-
-        self.running = True
-        self.message_received_callbacks = []
-        self.client_connected_callbacks = []
-        self.client_disconnected_callbacks = []
-
-        self.client_connection = None
-        self.session_key = None
+        super(VPNServer, self).__init__(port, shared_secret)
+        self.listen_socket = None
 
     def run(self):
         print "Starting server"
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind(("", self.port))
+        self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.listen_socket.bind(("", self.port))
 
-        self.socket.listen(1)
+        self.listen_socket.listen(1)
 
         while self.running:
             print "Listening for client"
-            readable, writable, errored = select.select([self.socket], [], [])
+            readable, writable, errored = select.select([self.listen_socket], [], [])
 
             if readable:
-                self.client_connection, addr = self.socket.accept()
+                self.socket, addr = self.listen_socket.accept()
 
                 if self.authenticate_client():
-                    for callback in self.client_connected_callbacks:
-                        callback(self.client_connection)
+                    self.handle_callbacks(self.connected_callbacks, self.socket)
                     print "Authenticated sucessfully"
-                    self.handle_client()
+                    self.receive_messages()
                 else:
                     try:
-                        self.client_connection.close()
+                        self.socket.close()
                     except:
                         pass
-                for callback in self.client_disconnected_callbacks:
-                    # maybe this doesn't need a parameter instead?
-                    callback(self.client_connection)
+                self.handle_callbacks(self.disconnected_callbacks, self.socket)
+
+                self.socket = None
+                self.session_key = None
 
     def authenticate_client(self):
         print "Authenticating client"
         while self.running:
-            readable, writable, errored = select.select([self.client_connection], [], [])
+            readable, writable, errored = select.select([self.socket], [], [])
 
             if readable:
-                client_nonce = self.client_connection.recv(1024)
+                client_nonce = self.socket.recv(1024)
                 challenge = self.generate_challenge(client_nonce)
                 nonce = self.generate_nonce()
                 break
 
         while self.running:
-            readable, writable, errored = select.select([], [self.client_connection], [])
+            readable, writable, errored = select.select([], [self.socket], [])
 
             if writable:
-                self.client_connection.sendall("{}\n{}".format(nonce, challenge))
+                self.socket.sendall("{}\n{}".format(nonce, challenge))
                 break
 
         while self.running:
-            readable, writable, errored = select.select([self.client_connection], [], [])
+            readable, writable, errored = select.select([self.socket], [], [])
 
             if readable:
-                challenge_response = self.client_connection.recv(1024)
+                challenge_response = self.socket.recv(1024)
 
                 print "Received challenge response:\n{}".format(challenge_response)
 
@@ -79,11 +69,8 @@ class VPNServer(threading.Thread):
                 return self.validate_challenge_response(challenge_response, nonce)
         return False
 
-    def generate_nonce(self):
-        return 1
-
     def generate_challenge(self, client_nonce):
-        server_host, server_port = self.client_connection.getsockname()
+        server_host, server_port = self.socket.getsockname()
         challenge = "{}\n{}\n{}".format(
                 server_host, client_nonce, self.shared_secret)
 
@@ -97,55 +84,13 @@ class VPNServer(threading.Thread):
         client_host, nonce, session_key, shared_secret = challenge_response.split("\n")
         nonce = int(nonce)
 
-        connected_client_host, connected_client_port = self.client_connection.getpeername()
+        connected_client_host, connected_client_port = self.socket.getpeername()
 
         if client_host == connected_client_host and nonce == original_nonce and shared_secret == self.shared_secret:
             self.session_key = session_key
             return True
 
         return False
-
-    def handle_client(self):
-        while self.running:
-            readable, writable, errored = select.select([self.client_connection], [], [])
-            if readable:
-                encrypted_message = self.client_connection.recv(1024)
-
-                if not encrypted_message:
-                    # the client disconnected
-                    return
-
-                # TODO: decrypt message
-                plaintext_message = encrypted_message
-
-                for callback in self.message_received_callbacks:
-                    callback(encrypted_message, plaintext_message)
-
-    def send(self, message):
-        while self.running:
-            readable, writable, errored = select.select([], [self.client_connection], [])
-
-            if writable and self.session_key:
-                # TODO: encrypt message
-
-                self.client_connection.sendall(message)
-                break
-
-    def add_message_received_callback(self, function):
-        self.message_received_callbacks.append(function)
-
-    def add_client_connected_callback(self, function):
-        self.client_connected_callbacks.append(function)
-
-    def add_client_disconnected_callback(self, function):
-        self.client_disconnected_callbacks.append(function)
-
-    def kill(self, wait=False):
-        self.running = False
-
-        if wait:
-            self.join()
-
 
 if __name__ == "__main__":
     def received_callback(encrypted_message, plaintext_message):
