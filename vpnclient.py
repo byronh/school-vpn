@@ -6,6 +6,9 @@ except:
 import select
 import socket
 
+from Crypto import Random
+from Crypto.Cipher import AES
+
 from vpn import VPN
 
 class VPNClient(VPN):
@@ -60,26 +63,29 @@ class VPNClient(VPN):
 
         self.handle_callbacks(self.disconnected_callbacks, self.socket)
 
-    def generate_challenge_response(self, challenge, original_nonce, server_nonce):
-        # TODO: decrypt challenge
+    def generate_challenge_response(self, encrypted_challenge, original_nonce, server_nonce):
+        challenge = self.auth_decrypt(encrypted_challenge)
 
         server_host, nonce, shared_secret = pickle.loads(challenge)
         connected_server_host, connected_server_port = self.socket.getpeername()
 
         if server_host == connected_server_host and nonce == original_nonce and shared_secret == self.shared_secret:
             self.session_key = self.generate_session_key()
+            self.session_iv = self.generate_iv()
+            self.session_crypto = AES.new(self.session_key, AES.MODE_CBC, self.session_iv)
             client_host, client_port = self.socket.getsockname()
             challenge_response = pickle.dumps(
-                (client_host, server_nonce, self.session_key, self.shared_secret))
+                (client_host, server_nonce, self.session_key, self.session_iv, self.shared_secret))
 
-            # TODO: encrypt challenge_response
-
-            return challenge_response
+            return self.auth_encrypt(challenge_response)
 
         return False
 
     def generate_session_key(self):
-        return "session key"
+        return Random.get_random_bytes(32)
+
+    def generate_iv(self):
+        return Random.get_random_bytes(16)
 
 if __name__ == "__main__":
     def received_callback(encrypted_message, plaintext_message):

@@ -1,6 +1,8 @@
 import select
 import threading
 
+from Crypto.Cipher import AES
+
 
 class VPN(threading.Thread):
     def __init__(self, port, shared_secret):
@@ -17,21 +19,46 @@ class VPN(threading.Thread):
         self.disconnected_callbacks = []
 
         self.session_key = None
+        self.session_iv = None
         self.socket = None
+
+        if len(shared_secret) > 32:
+            shared_secret = shared_secret[:32]
+
+        while len(shared_secret) not in [16, 24, 32]:
+            shared_secret += '\x00'
+
+        self.authentication_crypto = AES.new(shared_secret, AES.MODE_ECB)
+        self.session_crypto = None
 
     def generate_nonce(self):
         return 0
 
+    def auth_encrypt(self, message):
+        padded_message = self.pad_message(message)
+        return self.authentication_crypto.encrypt(padded_message)
+
+    def auth_decrypt(self, message):
+        padded_message = self.pad_message(message)
+        return self.authentication_crypto.decrypt(padded_message)
+
+    def session_encrypt(self, message):
+        padded_message = self.pad_message(message)
+        return self.session_crypto.encrypt(padded_message)
+
+    def session_decrypt(self, message):
+        padded_message = self.pad_message(message)
+        return self.session_crypto.decrypt(padded_message)
+
     def send(self, message):
-        if self.socket is None:
+        if self.socket is None or self.session_crypto is None:
             return
 
         while self.running:
             readable, writable, errored = select.select([], [self.socket], [])
 
-            if writable and self.session_key:
-                # TODO: encrypt message
-                encrypted_message = message
+            if writable:
+                encrypted_message = self.session_encrypt(message)
 
                 self.socket.sendall(encrypted_message)
 
@@ -39,7 +66,16 @@ class VPN(threading.Thread):
 
                 break
 
+    def pad_message(self, message, multiple=16):
+        while len(message) % 16 != 0:
+            message += '\x00'
+
+        return message
+
     def receive_messages(self):
+        if self.session_crypto is None:
+            return
+
         while self.running:
             readable, writable, errored = select.select([self.socket], [], [])
 
@@ -50,8 +86,7 @@ class VPN(threading.Thread):
                     # the client disconnected
                     return
 
-                # TODO: decrypt message
-                plaintext_message = encrypted_message
+                plaintext_message = self.session_decrypt(encrypted_message)
 
                 self.handle_callbacks(self.message_received_callbacks, encrypted_message, plaintext_message)
 

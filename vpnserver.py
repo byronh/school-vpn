@@ -6,6 +6,8 @@ except:
 import select
 import socket
 
+from Crypto.Cipher import AES
+
 from vpn import VPN
 
 class VPNServer(VPN):
@@ -40,6 +42,7 @@ class VPNServer(VPN):
 
                 self.socket = None
                 self.session_key = None
+                self.session_crypto = None
 
     def authenticate_client(self):
         print "Authenticating client"
@@ -77,20 +80,20 @@ class VPNServer(VPN):
         server_host, server_port = self.socket.getsockname()
         challenge = pickle.dumps((server_host, client_nonce, self.shared_secret))
 
-        # TODO: encrypt challenge
+        return self.auth_encrypt(challenge)
 
-        return challenge
+    def validate_challenge_response(self, encrypted_challenge_response, original_nonce):
+        challenge_response = self.auth_decrypt(encrypted_challenge_response)
 
-    def validate_challenge_response(self, challenge_response, original_nonce):
-        # TODO: decrypt challenge_response
-
-        client_host, nonce, session_key, shared_secret = pickle.loads(challenge_response)
+        client_host, nonce, session_key, session_iv, shared_secret = pickle.loads(challenge_response)
         nonce = int(nonce)
 
         connected_client_host, connected_client_port = self.socket.getpeername()
 
         if client_host == connected_client_host and nonce == original_nonce and shared_secret == self.shared_secret:
             self.session_key = session_key
+            self.session_iv = session_iv
+            self.session_crypto = AES.new(self.session_key, AES.MODE_CBC, self.session_iv)
             return True
 
         return False
