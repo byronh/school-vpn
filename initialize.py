@@ -53,7 +53,7 @@ class ApplicationGUI(object):
         self.received_plain_textview.get_buffer().set_text(plaintext_message)
 
     def message_sent_callback(self, plaintext_message, encrypted_message, cipher_text_entry):
-        cipher_text_entry.get_buffer().set_text(encrypted_message)
+        cipher_text_entry.set_text(encrypted_message)
 
     def close(self, widget):
         if self.vpn:
@@ -66,13 +66,16 @@ class ApplicationGUI(object):
 
         # create a new window
         window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-        window.set_usize(600, 500)
+        window.set_usize(900, 500)
         window.set_title("GTK Entry")
         window.connect("delete_event", gtk.mainquit)
 
+        hbox = gtk.HBox(gtk.FALSE, 0)
         vbox = gtk.VBox(gtk.FALSE, 0)
-        window.add(vbox)
+        window.add(hbox)
         vbox.show()
+        hbox.add(vbox)
+        hbox.show()
 
         mode_hbox = gtk.HBox(gtk.FALSE, 0)
         vbox.add(mode_hbox)
@@ -110,8 +113,8 @@ class ApplicationGUI(object):
 
         cipher_text_entry = gtk.Entry(50)
         cipher_text_entry.connect("activate", self.enter_callback, cipher_text_entry)
-        cipher_text_entry.set_text("cipher")
-        cipher_text_entry.append_text(" text")
+        cipher_text_entry.set_text("cipher text")
+        cipher_text_entry.set_editable(False)
         cipher_text_entry.select_region(0, len(cipher_text_entry.get_text()))
         vbox.pack_start(cipher_text_entry, gtk.TRUE, gtk.TRUE, 0)
         cipher_text_entry.show()        
@@ -168,22 +171,40 @@ class ApplicationGUI(object):
         close_button.grab_default()
         close_button.show()
  
+        receive_text_vbox = gtk.VBox(gtk.FALSE, 0)
+        receive_text_vbox.show()
+
         label = gtk.Label("Received Cipher Text")
-        vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
+        receive_text_vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
         label.show()
 
+        #scroll bars for received cipher text
+        self.scrolled_cipher_window = gtk.ScrolledWindow(hadjustment=None, vadjustment=None)
+        self.scrolled_cipher_window.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
+        receive_text_vbox.pack_start(self.scrolled_cipher_window, gtk.TRUE, gtk.TRUE, 0)
+        self.scrolled_cipher_window.show()
+
+        #recieved cipher textview
         self.received_cipher_textview = gtk.TextView()
-        vbox.pack_start(self.received_cipher_textview, gtk.TRUE, gtk.TRUE, 0)
+        self.scrolled_cipher_window.add_with_viewport(self.received_cipher_textview)
         self.received_cipher_textview.show()
 
         label = gtk.Label("Received Plain Text")
-        vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
+        receive_text_vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
         label.show()
 
+        #scroll bars for received plain text
+        self.scrolled_plain_window = gtk.ScrolledWindow(hadjustment=None, vadjustment=None)
+        self.scrolled_plain_window.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
+        receive_text_vbox.pack_start(self.scrolled_plain_window, gtk.TRUE, gtk.TRUE, 0)
+        self.scrolled_plain_window.show()
+
+        #received plain textview
         self.received_plain_textview = gtk.TextView()
-        vbox.pack_start(self.received_plain_textview, gtk.TRUE, gtk.TRUE, 0)
+        self.scrolled_plain_window.add_with_viewport(self.received_plain_textview)        
         self.received_plain_textview.show()
 
+        hbox.add(receive_text_vbox)
         window.show()
 
 def main():
