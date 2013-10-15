@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import binascii
+
 import gtk
 
 from vpnserver import VPNServer
@@ -49,11 +51,11 @@ class ApplicationGUI(object):
             start_button.set_label("Start Server")
 
     def message_received_callback(self, encrypted_message, plaintext_message):
-        self.received_cipher_textview.get_buffer().set_text(encrypted_message)
+        self.received_cipher_textview.get_buffer().set_text(binascii.b2a_hex(encrypted_message))
         self.received_plain_textview.get_buffer().set_text(plaintext_message)
 
     def message_sent_callback(self, plaintext_message, encrypted_message, cipher_text_entry):
-        cipher_text_entry.set_text(encrypted_message)
+        cipher_text_entry.set_text(binascii.b2a_hex(encrypted_message))
 
     def close(self, widget):
         if self.vpn:

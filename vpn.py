@@ -42,7 +42,7 @@ class VPN(threading.Thread):
 
     def auth_decrypt(self, message):
         padded_message = self.pad_message(message)
-        return self.authentication_crypto.decrypt(padded_message)
+        return self.authentication_crypto.decrypt(padded_message).rstrip('\x00')
 
     def session_encrypt(self, message):
         padded_message = self.pad_message(message)
@@ -50,7 +50,7 @@ class VPN(threading.Thread):
 
     def session_decrypt(self, message):
         padded_message = self.pad_message(message)
-        return self.session_crypto.decrypt(padded_message)
+        return self.session_crypto.decrypt(padded_message).rstrip('\x00')
 
     def send(self, message):
         if self.socket is None or self.session_crypto is None:
