@@ -86,7 +86,6 @@ class VPNServer(VPN):
         challenge_response = self.auth_decrypt(encrypted_challenge_response)
 
         client_host, nonce, session_key, session_iv, shared_secret = pickle.loads(challenge_response)
-        nonce = int(nonce)
 
         connected_client_host, connected_client_port = self.socket.getpeername()
 

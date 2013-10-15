@@ -1,6 +1,7 @@
 import select
 import threading
 
+from Crypto import Random
 from Crypto.Cipher import AES
 
 
@@ -32,7 +33,8 @@ class VPN(threading.Thread):
         self.session_crypto = None
 
     def generate_nonce(self):
-        return 0
+        # generate a 32-bit nonce
+        return Random.get_random_bytes(4)
 
     def auth_encrypt(self, message):
         padded_message = self.pad_message(message)
