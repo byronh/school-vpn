@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+try:
+    import cPickle as pickle
+except:
+    import pickle
 import select
 import socket
 
@@ -43,7 +47,7 @@ class VPNServer(VPN):
             readable, writable, errored = select.select([self.socket], [], [])
 
             if readable:
-                client_nonce = self.socket.recv(1024)
+                client_nonce = pickle.loads(self.socket.recv(1024))
                 challenge = self.generate_challenge(client_nonce)
                 nonce = self.generate_nonce()
                 break
@@ -52,7 +56,7 @@ class VPNServer(VPN):
             readable, writable, errored = select.select([], [self.socket], [])
 
             if writable:
-                self.socket.sendall("{}\n{}".format(nonce, challenge))
+                self.socket.sendall(pickle.dumps((nonce, challenge)))
                 break
 
         while self.running:
@@ -71,8 +75,7 @@ class VPNServer(VPN):
 
     def generate_challenge(self, client_nonce):
         server_host, server_port = self.socket.getsockname()
-        challenge = "{}\n{}\n{}".format(
-                server_host, client_nonce, self.shared_secret)
+        challenge = pickle.dumps((server_host, client_nonce, self.shared_secret))
 
         # TODO: encrypt challenge
 
@@ -81,7 +84,7 @@ class VPNServer(VPN):
     def validate_challenge_response(self, challenge_response, original_nonce):
         # TODO: decrypt challenge_response
 
-        client_host, nonce, session_key, shared_secret = challenge_response.split("\n")
+        client_host, nonce, session_key, shared_secret = pickle.loads(challenge_response)
         nonce = int(nonce)
 
         connected_client_host, connected_client_port = self.socket.getpeername()

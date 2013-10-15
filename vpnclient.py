@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+try:
+    import cPickle as pickle
+except:
+    import pickle
 import select
 import socket
 
@@ -20,7 +24,7 @@ class VPNClient(VPN):
             readable, writable, errored = select.select([], [self.socket], [])
             
             if writable:
-                self.socket.sendall(str(nonce))
+                self.socket.sendall(pickle.dumps(nonce))
                 break
 
         while self.running:
@@ -29,8 +33,7 @@ class VPNClient(VPN):
             if readable:
                 response = self.socket.recv(1024)
 
-                server_nonce, challenge = response.split("\n", 1)
-                server_nonce = int(server_nonce)
+                server_nonce, challenge = pickle.loads(response)
 
                 print "Received challenge:\n{}".format(challenge)
 
@@ -60,15 +63,14 @@ class VPNClient(VPN):
     def generate_challenge_response(self, challenge, original_nonce, server_nonce):
         # TODO: decrypt challenge
 
-        server_host, nonce, shared_secret = challenge.split("\n")
-        nonce = int(nonce)
+        server_host, nonce, shared_secret = pickle.loads(challenge)
         connected_server_host, connected_server_port = self.socket.getpeername()
 
         if server_host == connected_server_host and nonce == original_nonce and shared_secret == self.shared_secret:
             self.session_key = self.generate_session_key()
             client_host, client_port = self.socket.getsockname()
-            challenge_response = "{}\n{}\n{}\n{}".format(
-                    client_host, server_nonce, self.session_key, self.shared_secret)
+            challenge_response = pickle.dumps(
+                (client_host, server_nonce, self.session_key, self.shared_secret))
 
             # TODO: encrypt challenge_response
 
