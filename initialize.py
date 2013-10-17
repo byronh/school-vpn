@@ -2,6 +2,8 @@
 import binascii
 
 import gtk
+import Queue
+import socket
 
 from vpnserver import VPNServer
 from vpnclient import VPNClient
@@ -22,11 +24,11 @@ class ApplicationGUI(object):
             self.vpn = VPNServer(int(port_entry.get_text()), shared_secret_entry.get_text())
         else:
             # TODO: handle authentication errors and connection errors
-            self.vpn = VPNClient(
-                    host_entry.get_text(), int(port_entry.get_text()), shared_secret_entry.get_text())
+            self.vpn = VPNClient(host_entry.get_text(), int(port_entry.get_text()), shared_secret_entry.get_text())
 
         self.vpn.add_message_received_callback(self.message_received_callback)
         self.vpn.add_message_sent_callback(self.message_sent_callback, cipher_text_entry)
+        self.vpn.add_disconnected_callback(self.disconnected_from_server_callback)
         self.vpn.start()
 
     def client_connected_callback(self, socket):
@@ -39,7 +41,11 @@ class ApplicationGUI(object):
         pass
 
     def disconnected_from_server_callback(self, socket):
-        pass
+        self.vpn.kill()
+        md = gtk.MessageDialog(self.window,gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
+            "Network connection failed")
+        md.run()
+        md.destroy()
 
     def mode_toggled_callback(self, widget, host_label, host_entry, start_button, is_client_mode=True):
         host_label.set_visible(is_client_mode)
@@ -67,14 +73,14 @@ class ApplicationGUI(object):
         self.vpn = None
 
         # create a new window
-        window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-        window.set_usize(900, 500)
-        window.set_title("GTK Entry")
-        window.connect("delete_event", gtk.mainquit)
+        self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+        self.window.set_usize(900, 500)
+        self.window.set_title("GTK Entry")
+        self.window.connect("delete_event", gtk.mainquit)
 
         hbox = gtk.HBox(gtk.FALSE, 0)
         vbox = gtk.VBox(gtk.FALSE, 0)
-        window.add(hbox)
+        self.window.add(hbox)
         vbox.show()
         hbox.add(vbox)
         hbox.show()
@@ -167,7 +173,7 @@ class ApplicationGUI(object):
         client_button.show()
 
         close_button = gtk.Button("Close")
-        close_button.connect_object("clicked", self.close, window)
+        close_button.connect_object("clicked", self.close, self.window)
         vbox.pack_start(close_button, gtk.TRUE, gtk.TRUE, 0)
         close_button.set_flags(gtk.CAN_DEFAULT)
         close_button.grab_default()
@@ -207,7 +213,7 @@ class ApplicationGUI(object):
         self.received_plain_textview.show()
 
         hbox.add(receive_text_vbox)
-        window.show()
+        self.window.show()
 
 def main():
     gtk.gdk.threads_init()

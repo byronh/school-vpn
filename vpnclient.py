@@ -18,7 +18,10 @@ class VPNClient(VPN):
 
     def run(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.host, self.port))
+        try:
+            self.socket.connect((self.host, self.port))
+        except socket.error as e:
+            self.handle_callbacks(self.disconnected_callbacks, e)
 
         challenge_response = None
         nonce = self.generate_nonce()
