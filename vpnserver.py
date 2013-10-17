@@ -79,18 +79,18 @@ class VPNServer(VPN):
 
     def generate_challenge(self, client_nonce):
         server_host, server_port = self.socket.getsockname()
-        challenge = pickle.dumps((server_host, server_port, client_nonce, self.shared_secret))
+        challenge = pickle.dumps((server_host, server_port, client_nonce))
 
         return self.auth_encrypt(challenge)
 
     def validate_challenge_response(self, encrypted_challenge_response, original_nonce):
         challenge_response = self.auth_decrypt(encrypted_challenge_response)
 
-        client_host, client_port, nonce, session_key, session_iv, shared_secret = pickle.loads(challenge_response)
+        client_host, client_port, nonce, session_key, session_iv = pickle.loads(challenge_response)
 
         connected_client_host, connected_client_port = self.socket.getpeername()
 
-        if client_host == connected_client_host and client_port == connected_client_port and nonce == original_nonce and shared_secret == self.shared_secret:
+        if client_host == connected_client_host and client_port == connected_client_port and nonce == original_nonce:
             self.session_key = session_key
             self.session_iv = session_iv
             self.session_crypto = AES.new(self.session_key, AES.MODE_CBC, self.session_iv)
