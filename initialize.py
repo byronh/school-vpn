@@ -129,7 +129,7 @@ class ApplicationGUI(object):
         host_port_hbox.pack_start(host_label, gtk.TRUE, gtk.TRUE, 0)
         #host_label.show()
 
-        host_entry = gtk.Entry(10)
+        host_entry = gtk.Entry(25)
         host_entry.set_text("localhost")
         host_entry.select_region(0, len(host_entry.get_text()))
         host_port_hbox.pack_start(host_entry, gtk.TRUE, gtk.TRUE, 0)
