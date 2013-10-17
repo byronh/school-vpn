@@ -53,7 +53,6 @@ class ApplicationGUI(object):
         self.on_error("Shared secrets do not match")
     
     def bind_port_callback(self):
-        self.stop_vpn()
         self.on_error("Failed to bind the specified port")
 
     def on_error(self, message):
