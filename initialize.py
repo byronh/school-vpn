@@ -17,20 +17,24 @@ class ApplicationGUI(object):
         entry_text = entry.get_text()
         self.vpn.send(entry_text)
 
-    def start_callback(self, widget, host_entry, port_entry, shared_secret_entry, cipher_text_entry):
-        shared_secret_entry.set_editable(False)
+    def start_callback(self, widget, host_entry, port_entry, cipher_text_entry):
+        self.shared_secret_entry.set_editable(False)
         if widget.get_label() == "Start Server":
             # TODO: catch exceptions such as not being able to bind on port
-            self.vpn = VPNServer(int(port_entry.get_text()), shared_secret_entry.get_text())
+            self.vpn = VPNServer(int(port_entry.get_text()), self.shared_secret_entry.get_text())
         else:
             # TODO: handle authentication errors and connection errors
-            self.vpn = VPNClient(host_entry.get_text(), int(port_entry.get_text()), shared_secret_entry.get_text())
+            self.vpn = VPNClient(host_entry.get_text(), int(port_entry.get_text()), self.shared_secret_entry.get_text())
+            self.vpn.add_disconnected_callback(self.disconnected_from_server_callback)
 
         self.vpn.add_message_received_callback(self.message_received_callback)
         self.vpn.add_message_sent_callback(self.message_sent_callback, cipher_text_entry)
-        self.vpn.add_disconnected_callback(self.disconnected_from_server_callback)
         self.vpn.add_shared_secret_callback(self.shared_secret_callback)
         self.vpn.start()
+
+    def stop_vpn(self):
+        self.vpn.kill()
+        self.shared_secret_entry.set_editable(True)
 
     def client_connected_callback(self, socket):
         pass
@@ -42,17 +46,17 @@ class ApplicationGUI(object):
         pass
 
     def disconnected_from_server_callback(self, socket):
-        self.vpn.kill()
+        self.stop_vpn()
         self.on_error("Network connection failed")
 
-    def shared_secret_callback(self, socket):
-        self.vpn.kill()
+    def shared_secret_callback(self):
+        self.stop_vpn()
         self.on_error("Shared secrets do not match")
 
     def on_error(self, message):
         gtk.gdk.threads_enter()
         md = gtk.MessageDialog(self.window, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR, gtk.BUTTONS_CLOSE,
-            "Network connection failed")
+            message)
         md.run()
         md.destroy()
         gtk.gdk.threads_leave()
@@ -107,12 +111,12 @@ class ApplicationGUI(object):
         vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
         label.show()
 
-        shared_secret_entry = gtk.Entry(50)
-        shared_secret_entry.connect("activate", self.enter_callback, shared_secret_entry)
-        shared_secret_entry.set_text("shared_secret")
-        shared_secret_entry.select_region(0, len(shared_secret_entry.get_text()))
-        vbox.pack_start(shared_secret_entry, gtk.TRUE, gtk.TRUE, 0)
-        shared_secret_entry.show()
+        self.shared_secret_entry = gtk.Entry(50)
+        self.shared_secret_entry.connect("activate", self.enter_callback)
+        self.shared_secret_entry.set_text("shared_secret")
+        self.shared_secret_entry.select_region(0, len(self.shared_secret_entry.get_text()))
+        vbox.pack_start(self.shared_secret_entry, gtk.TRUE, gtk.TRUE, 0)
+        self.shared_secret_entry.show()
 
         label = gtk.Label("Plain text")
         vbox.pack_start(label, gtk.TRUE, gtk.TRUE, 0)
@@ -168,7 +172,7 @@ class ApplicationGUI(object):
 
         start_button = gtk.Button("Start Server")
         vbox.pack_start(start_button, gtk.TRUE, gtk.TRUE, 0)
-        start_button.connect("clicked", self.start_callback, host_entry, port_entry, shared_secret_entry, cipher_text_entry)
+        start_button.connect("clicked", self.start_callback, host_entry, port_entry, cipher_text_entry)
         start_button.show()
 
         server_button = gtk.RadioButton(None, "Server")
