@@ -20,10 +20,9 @@ class ApplicationGUI(object):
     def start_callback(self, widget, host_entry, port_entry, cipher_text_entry):
         self.shared_secret_entry.set_editable(False)
         if widget.get_label() == "Start Server":
-            # TODO: catch exceptions such as not being able to bind on port
             self.vpn = VPNServer(int(port_entry.get_text()), self.shared_secret_entry.get_text())
+            self.vpn.add_bind_port_callback(self.bind_port_callback)
         else:
-            # TODO: handle authentication errors and connection errors
             self.vpn = VPNClient(host_entry.get_text(), int(port_entry.get_text()), self.shared_secret_entry.get_text())
             self.vpn.add_disconnected_callback(self.disconnected_from_server_callback)
 
@@ -52,6 +51,10 @@ class ApplicationGUI(object):
     def shared_secret_callback(self):
         self.stop_vpn()
         self.on_error("Shared secrets do not match")
+    
+    def bind_port_callback(self):
+        self.stop_vpn()
+        self.on_error("Failed to bind the specified port")
 
     def on_error(self, message):
         gtk.gdk.threads_enter()

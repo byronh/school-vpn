@@ -16,9 +16,13 @@ class VPNServer(VPN):
         self.listen_socket = None
 
     def run(self):
-        print "Starting server"
         self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.listen_socket.bind(("", self.port))
+        try:
+	        self.listen_socket.bind(("", self.port))
+	        print "Starting server"
+        except socket.error as e:
+            self.handle_callbacks(self.bind_port_callbacks)
+            return
 
         self.listen_socket.listen(1)
 
