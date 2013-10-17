@@ -22,6 +22,10 @@ class VPN(threading.Thread):
         self.session_key = None
         self.session_iv = None
         self.socket = None
+        self.session_crypto = None
+
+    def setup_auth_crypto(self, iv):
+        shared_secret = self.shared_secret
 
         if len(shared_secret) > 32:
             shared_secret = shared_secret[:32]
@@ -29,8 +33,13 @@ class VPN(threading.Thread):
         while len(shared_secret) not in [16, 24, 32]:
             shared_secret += '\x00'
 
-        self.authentication_crypto = AES.new(shared_secret, AES.MODE_ECB)
-        self.session_crypto = None
+        if len(iv) > 16:
+            iv = iv[:16]
+
+        while len(iv) != 16:
+            iv += '\x00'
+
+        self.authentication_crypto = AES.new(shared_secret, AES.MODE_CBC, iv)
 
     def generate_nonce(self):
         # generate a 32-bit nonce

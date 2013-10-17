@@ -25,6 +25,7 @@ class VPNClient(VPN):
 
         challenge_response = None
         nonce = self.generate_nonce()
+        self.setup_auth_crypto(nonce)
 
         while self.running:
             readable, writable, errored = select.select([], [self.socket], [])
@@ -69,16 +70,16 @@ class VPNClient(VPN):
     def generate_challenge_response(self, encrypted_challenge, original_nonce, server_nonce):
         challenge = self.auth_decrypt(encrypted_challenge)
 
-        server_host, nonce, shared_secret = pickle.loads(challenge)
+        server_host, server_port, nonce, shared_secret = pickle.loads(challenge)
         connected_server_host, connected_server_port = self.socket.getpeername()
 
-        if server_host == connected_server_host and nonce == original_nonce and shared_secret == self.shared_secret:
+        if server_host == connected_server_host and server_port == connected_server_port and nonce == original_nonce and shared_secret == self.shared_secret:
             self.session_key = self.generate_session_key()
             self.session_iv = self.generate_iv()
             self.session_crypto = AES.new(self.session_key, AES.MODE_CBC, self.session_iv)
             client_host, client_port = self.socket.getsockname()
             challenge_response = pickle.dumps(
-                (client_host, server_nonce, self.session_key, self.session_iv, self.shared_secret))
+                (client_host, client_port, server_nonce, self.session_key, self.session_iv, self.shared_secret))
 
             return self.auth_encrypt(challenge_response)
 
