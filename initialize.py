@@ -42,10 +42,15 @@ class ApplicationGUI(object):
 
     def disconnected_from_server_callback(self, socket):
         self.vpn.kill()
-        md = gtk.MessageDialog(self.window,gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
+        self.on_error("Network connection failed")
+
+    def on_error(self, message):
+        gtk.gdk.threads_enter()
+        md = gtk.MessageDialog(self.window, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR, gtk.BUTTONS_CLOSE,
             "Network connection failed")
         md.run()
         md.destroy()
+        gtk.gdk.threads_leave()
 
     def mode_toggled_callback(self, widget, host_label, host_entry, start_button, is_client_mode=True):
         host_label.set_visible(is_client_mode)
