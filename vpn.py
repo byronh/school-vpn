@@ -18,6 +18,7 @@ class VPN(threading.Thread):
         self.message_sent_callbacks = []
         self.connected_callbacks = []
         self.disconnected_callbacks = []
+        self.shared_secret_callbacks = []
 
         self.session_key = None
         self.session_iv = None
@@ -116,6 +117,9 @@ class VPN(threading.Thread):
 
     def add_disconnected_callback(self, function, *extra_args):
         self.disconnected_callbacks.append((function, extra_args))
+
+    def add_shared_secret_callback(self, function, *extra_args):
+        self.shared_secret_callbacks.append((function, extra_args))
 
     def kill(self, wait=False):
         self.running = False

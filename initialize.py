@@ -29,6 +29,7 @@ class ApplicationGUI(object):
         self.vpn.add_message_received_callback(self.message_received_callback)
         self.vpn.add_message_sent_callback(self.message_sent_callback, cipher_text_entry)
         self.vpn.add_disconnected_callback(self.disconnected_from_server_callback)
+        self.vpn.add_shared_secret_callback(self.shared_secret_callback)
         self.vpn.start()
 
     def client_connected_callback(self, socket):
@@ -43,6 +44,10 @@ class ApplicationGUI(object):
     def disconnected_from_server_callback(self, socket):
         self.vpn.kill()
         self.on_error("Network connection failed")
+
+    def shared_secret_callback(self, socket):
+        self.vpn.kill()
+        self.on_error("Shared secrets do not match")
 
     def on_error(self, message):
         gtk.gdk.threads_enter()

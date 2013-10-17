@@ -20,57 +20,61 @@ class VPNClient(VPN):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.socket.connect((self.host, self.port))
+
+            challenge_response = None
+            nonce = self.generate_nonce()
+            self.setup_auth_crypto(nonce)
+
+            while self.running:
+                readable, writable, errored = select.select([], [self.socket], [])
+                
+                if writable:
+                    self.socket.sendall(pickle.dumps(nonce))
+                    break
+
+            while self.running:
+                readable, writable, errored = select.select([self.socket], [], [])
+
+                if readable:
+                    response = self.socket.recv(1024)
+
+                    server_nonce, challenge = pickle.loads(response)
+
+                    print "Received challenge:\n{}".format(challenge)
+
+                    challenge_response = self.generate_challenge_response(challenge, nonce, server_nonce)
+
+                    if not challenge_response:
+                        self.socket.close()
+                        return
+
+                    break
+
+            while self.running:
+                readable, writable, errored = select.select([], [self.socket], [])
+                
+                if writable:
+                    self.socket.sendall(challenge_response)
+                    break
+
+            print "Authenticated successfully"
+
+            self.handle_callbacks(self.connected_callbacks, self.socket)
+
+            self.receive_messages()
+
         except socket.error as e:
-            self.handle_callbacks(self.disconnected_callbacks, e)
-
-        challenge_response = None
-        nonce = self.generate_nonce()
-        self.setup_auth_crypto(nonce)
-
-        while self.running:
-            readable, writable, errored = select.select([], [self.socket], [])
-            
-            if writable:
-                self.socket.sendall(pickle.dumps(nonce))
-                break
-
-        while self.running:
-            readable, writable, errored = select.select([self.socket], [], [])
-
-            if readable:
-                response = self.socket.recv(1024)
-
-                server_nonce, challenge = pickle.loads(response)
-
-                print "Received challenge:\n{}".format(challenge)
-
-                challenge_response = self.generate_challenge_response(challenge, nonce, server_nonce)
-
-                if not challenge_response:
-                    self.socket.close()
-                    return
-
-                break
-
-        while self.running:
-            readable, writable, errored = select.select([], [self.socket], [])
-            
-            if writable:
-                self.socket.sendall(challenge_response)
-                break
-
-        print "Authenticated successfully"
-
-        self.handle_callbacks(self.connected_callbacks, self.socket)
-
-        self.receive_messages()
-
-        self.handle_callbacks(self.disconnected_callbacks, self.socket)
+            self.handle_callbacks(self.disconnected_callbacks, self.socket)
 
     def generate_challenge_response(self, encrypted_challenge, original_nonce, server_nonce):
         challenge = self.auth_decrypt(encrypted_challenge)
 
-        server_host, server_port, nonce = pickle.loads(challenge)
+        try:
+            server_host, server_port, nonce = pickle.loads(challenge)
+        except:
+            self.handle_callbacks(self.shared_secret_callbacks)
+            return False
+
         connected_server_host, connected_server_port = self.socket.getpeername()
 
         if server_host == connected_server_host and server_port == connected_server_port and nonce == original_nonce:
